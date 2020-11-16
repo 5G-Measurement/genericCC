@@ -1,6 +1,6 @@
 pMEMORY_STYLE := ./protobufs-default
 
-CXX := g++-6
+CXX := g++
 CXXFLAGS := -DHAVE_CONFIG_H -std=c++11 -pthread -pedantic -Wall -Wextra -Weffc++ -Werror -fno-default-inline -g -O2 -fPIC
 INCLUDES :=	-I./protobufs-default -I./udt
 

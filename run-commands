@@ -1,0 +1,8 @@
+receiver: 
+
+    ./receiver  -> listens on port 8888 (need to configure the source code)
+
+sender:
+
+    export MIN_RTT=1000000
+    ./sender serverip=192.168.10.4 serverport=5001 offduration=0 onduration=10000 traffic_params=deterministic num_cycles=1 cctype=markovian delta_conf='do_ss:auto:0.1'
