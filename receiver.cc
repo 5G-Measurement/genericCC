@@ -5,6 +5,8 @@
 #include <mutex>
 #include <string.h>
 #include <thread>
+#include <fstream>
+#include <signal.h>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -16,6 +18,11 @@
 #define BUFFSIZE 15000
 
 using namespace std;
+
+// for logging
+char* file_name;
+std::ofstream logger;
+void segfault_sigaction(int signal, siginfo_t *si, void *arg);
 
 // used to lock socket used to listen for packets from the sender
 mutex socket_lock; 
@@ -69,8 +76,13 @@ void echo_packets(UDPSocket &sender_socket) {
 	char buff[BUFFSIZE];
 	sockaddr_in sender_addr;
 
+	logger.open(file_name);
+	logger << "seqno," << "sendtime," << "recvtime\n";
+
 	chrono::high_resolution_clock::time_point start_time_point = \
 		chrono::high_resolution_clock::now();
+
+	chrono::high_resolution_clock::time_point recv_time;
 
 	while (1) {
 		int received __attribute((unused)) = -1;
@@ -83,27 +95,49 @@ void echo_packets(UDPSocket &sender_socket) {
 		}
 
 		TCPHeader *header = (TCPHeader*)buff;
+		recv_time = chrono::high_resolution_clock::now();
 		header->receiver_timestamp = \
 			chrono::duration_cast<chrono::duration<double>>(
-				chrono::high_resolution_clock::now() - start_time_point
+				recv_time - start_time_point
 			).count()*1000; //in milliseconds
 
 		//socket_lock.lock();
 			sender_socket.senddata(buff, sizeof(TCPHeader), &sender_addr);
 		//socket_lock.unlock();
+
+		logger << header->seq_num << "," << header->sender_timestamp << "," << header->receiver_timestamp << "\n";
 	}
 }
 
 int main(int argc, char* argv[]) {
-	int port = 8888;
-	if (argc == 2)
-		port = atoi(argv[1]);
+
+	// catching segmentation faults
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(struct sigaction));
+	sigemptyset(&sa.sa_mask);
+	sa.sa_sigaction = segfault_sigaction;
+	sa.sa_flags   = SA_SIGINFO;
+	sigaction(SIGSEGV, &sa, NULL);
+
+	if ((3 != argc) || (0 == atoi(argv[1])))
+	{
+		cout << "usage: receiver server_port log_file" << endl;
+		return 0;
+	}
+	int port = atoi(argv[1]);
+	file_name = argv[2];
 
 	UDPSocket sender_socket;
 	sender_socket.bindsocket(port);
 	
-	//thread nat_thread(punch_NAT, nat_ip_addr, ref(sender_socket));
 	echo_packets(sender_socket);
 
 	return 0;
+}
+
+void segfault_sigaction(int signal, siginfo_t *si, void *arg)
+{
+	(void)signal; (void)si; (void) arg;
+   	logger.close();
+   	exit(0);
 }

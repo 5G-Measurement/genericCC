@@ -50,3 +50,6 @@ tmp*
 sender
 receiver
 prober
+
+# vs code
+.vscode/
